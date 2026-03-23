@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gujarat PO Revenue Live Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --gold-primary: #FFD700;
+            --gold-dark: #B8860B;
+            --neon-glow: 0 0 15px rgba(255, 215, 0, 0.4);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --bg-gradient: radial-gradient(circle at top right, #2c2c2c, #000000);
+            --header-bg: #141414;
+            --table-row-bg: transparent;
+        }
+
+        [data-theme="light"] {
+            --gold-primary: #ea580c; 
+            --gold-dark: #9a3412;
+            --neon-glow: 0 0 10px rgba(234, 88, 12, 0.2);
+            --glass-bg: rgba(255, 247, 237, 0.8);
+            --glass-border: rgba(154, 52, 18, 0.2);
+            --text-main: #431407;
+            --bg-gradient: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+            --header-bg: #ffedd5;
+            --table-row-bg: rgba(255, 255, 255, 0.3);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            transition: all 0.4s ease;
+            min-height: 100vh;
+            font-size: 1.1rem; /* Base font size increased */
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1.05rem; /* Increased from 0.85rem */
+            background: var(--table-row-bg);
+        }
+
+        .custom-table th {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 14px 10px; /* Increased padding */
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-main);
+            font-weight: 800;
+        }
+        [data-theme="light"] .custom-table th { 
+            background: rgba(234, 88, 12, 0.15); 
+            border-color: rgba(67, 20, 7, 0.2);
+        }
+
+        .sticky-header th {
+            position: sticky;
+            z-index: 20;
+            background: var(--header-bg) !important;
+        }
+        .sticky-header tr:first-child th { top: 0; }
+        .sticky-header tr:nth-child(2) th { top: 52px; } /* Adjusted for larger font height */
+
+        .custom-table td {
+            padding: 12px 10px;
+            border: 1px solid var(--glass-border);
+            transition: background 0.3s;
+            color: var(--text-main);
+        }
+        [data-theme="light"] .custom-table td {
+            border-color: rgba(67, 20, 7, 0.1);
+        }
+
+        .region-row { background: rgba(255, 215, 0, 0.1) !important; cursor: pointer; font-weight: bold; font-size: 1.1rem; }
+        [data-theme="light"] .region-row { background: rgba(234, 88, 12, 0.15) !important; }
+        
+        .division-row { background: rgba(255, 255, 255, 0.02); font-size: 1rem; }
+        [data-theme="light"] .division-row { background: rgba(255, 255, 255, 0.2); }
+
+        .total-row { background: rgba(255, 215, 0, 0.2) !important; font-weight: 900; font-size: 1.15rem; }
+        [data-theme="light"] .total-row { background: #fb923c !important; color: #fff !important; }
+
+        .sticky-col { 
+            position: sticky; 
+            left: 0; 
+            background: var(--header-bg) !important; 
+            z-index: 25; 
+            border-right: 2px solid var(--glass-border) !important; 
+        }
+
+        .countdown-circle {
+            width: 44px; height: 44px; /* Slightly larger */
+            border: 2px solid var(--gold-primary);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 1rem;
+        }
+
+        .btn-action {
+            padding: 8px 18px;
+            border-radius: 8px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            font-size: 1rem; /* Increased from 0.8rem */
+            display: flex; align-items: center; gap: 8px;
+            transition: 0.2s;
+            color: var(--text-main);
+        }
+        .btn-action:hover { background: var(--gold-primary); color: #000; }
+
+        select {
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            border: 1px solid var(--glass-border);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        [data-theme="light"] select { background: #fff; color: #431407; border-color: #ea580c; }
+        
+        .chart-container {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+
+        .section-title {
+            font-size: 1.1rem; /* Increased from sm */
+            font-weight: 800;
+        }
+        .meta-text {
+            font-size: 0.875rem; /* Increased from 10px */
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <header class="p-4 mx-4 mt-4 glass-card flex flex-col md:flex-row justify-between items-center gap-4 sticky top-4 z-[100]">
+        <div class="flex items-center gap-4">
+            <div class="bg-yellow-500 p-3 rounded-lg"><i class="fas fa-microchip text-black text-xl"></i></div>
+            <div>
+                <h1 class="text-2xl font-black tracking-tighter">GUJARAT PO REVENUE</h1>
+                <div class="flex items-center gap-2 meta-text uppercase tracking-widest">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span> Live System
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-3 border-r border-white/10 pr-6">
+                <span class="meta-text">SYNC:</span>
+                <div id="countdown" class="countdown-circle">60</div>
+            </div>
+            <button onclick="toggleView()" class="btn-action"><i class="fas fa-desktop"></i> <span id="v-text">Desktop</span></button>
+            <button id="theme-btn" onclick="toggleTheme()" class="btn-action"><i class="fas fa-moon"></i></button>
+        </div>
+    </header>
+
+    <main id="app-wrapper" class="p-4 max-w-[1700px] mx-auto space-y-8">
+        <!-- PART A -->
+        <section class="glass-card p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="section-title text-yellow-600 dark:text-yellow-500 uppercase tracking-tighter">Part A: Regional Comprehensive Metrics</h2>
+                    <p class="meta-text mt-1">Note: 'Total' column includes all revenue rows for the selected period.</p>
+                </div>
+                <div class="flex flex-wrap gap-4 items-center">
+                    <select id="a-p1" onchange="handleAPeriodChange()"></select>
+                    <select id="a-p2" onchange="renderTableA()"></select>
+                    <div class="h-8 w-[1px] bg-white/10"></div>
+                    <button onclick="exportTable('table-a', 'Regional_Metrics')" class="btn-action text-green-600 dark:text-green-400"><i class="fas fa-file-csv"></i> Export</button>
+                    <button onclick="exportRawData()" class="btn-action text-blue-600 dark:text-blue-400"><i class="fas fa-database"></i> Raw Data</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-[650px] border border-white/5 rounded-lg shadow-inner">
+                <table id="table-a" class="custom-table"></table>
+            </div>
+        </section>
+
+        <!-- PART B -->
+        <section class="glass-card p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="section-title text-yellow-600 dark:text-yellow-500 uppercase">Part B: Target Achievement Analysis</h2>
+                <button onclick="exportTable('table-b', 'Target_Achievement')" class="btn-action text-green-600 dark:text-green-400"><i class="fas fa-file-csv"></i> Export Table</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">REGION (TARGET DATA)</label>
+                    <select id="b-reg" class="w-full" onchange="handleBRegChange()"></select>
+                </div>
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">PERIOD (ACTUAL DATA)</label>
+                    <select id="b-per" class="w-full" onchange="handleBPerChange()" disabled></select>
+                </div>
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">PRODUCT GROUP</label>
+                    <select id="b-prod" class="w-full" onchange="renderTableB()" disabled></select>
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-[550px] mb-8 rounded-lg border border-white/5">
+                <table id="table-b" class="custom-table"></table>
+            </div>
+            
+            <div id="chart-b-panel" class="mt-10 border-t border-white/10 pt-8">
+                <h3 class="text-sm font-bold text-yellow-600 dark:text-yellow-500/70 uppercase mb-6 px-2">Visualization: Achievement % by Division</h3>
+                <div class="chart-container px-2">
+                    <canvas id="chartB"></canvas>
+                    <div id="chart-b-empty" class="hidden absolute inset-0 flex items-center justify-center text-lg opacity-40 italic">
+                        No data available for chart
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PART C -->
+        <section class="glass-card p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="section-title text-yellow-600 dark:text-yellow-500 uppercase">Part C: Divisional Product Description View</h2>
+                    <p class="meta-text mt-1">Granular view of revenue items by description.</p>
+                </div>
+                <button onclick="exportTableC()" class="btn-action text-green-600 dark:text-green-400"><i class="fas fa-file-csv"></i> Export Table</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">REGION</label>
+                    <select id="c-reg" class="w-full" onchange="handleCRegChange()"></select>
+                </div>
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">DIVISION</label>
+                    <select id="c-div" class="w-full" onchange="handleCDivChange()" disabled></select>
+                </div>
+                <div class="space-y-2">
+                    <label class="meta-text font-bold ml-1">PERIOD</label>
+                    <select id="c-per" class="w-full" onchange="renderTableC()" disabled></select>
+                </div>
+            </div>
+            <div class="overflow-x-auto max-h-[650px] relative rounded-lg border border-white/5">
+                <table id="table-c" class="custom-table"></table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTeuE9DKwx-FsoQBKwHW4bpJAPFZg0d9KGGDbqkoUNEeqBBWlNeh7qpM4nu4AwsXetoj1FLiNfOyiqe/pub?gid=0&single=true&output=csv';
+        const PRODUCT_COLS = ["CCS", "Parcel", "IRGB", "MO", "FS"];
+        
+        let rawData = [];
+        let timer = 60;
+        let expanded = new Set();
+        let isDark = true;
+        let isMobile = false;
+        window.chartBInstance = null;
+
+        window.onload = async () => {
+            await updateDashboard();
+            setInterval(tick, 1000);
+        };
+
+        async function tick() {
+            timer--;
+            document.getElementById('countdown').innerText = timer;
+            if (timer <= 0) {
+                timer = 60;
+                await updateDashboard(true);
+            }
+        }
+
+        async function updateDashboard(isBackground = false) {
+            const tableA = document.getElementById('table-a');
+            const tableB = document.getElementById('table-b');
+            const tableC = document.getElementById('table-c');
+            
+            if(isBackground) {
+                tableA.classList.add('refreshing');
+                tableB.classList.add('refreshing');
+                tableC.classList.add('refreshing');
+            }
+
+            try {
+                const response = await fetch(CSV_URL);
+                const text = await response.text();
+                rawData = parseCSV(text);
+                
+                initFilters();
+                initFiltersC();
+                renderTableA();
+                renderTableB();
+                renderTableC();
+            } catch (err) {
+                console.error("Data fetch failed", err);
+            }
+
+            if(isBackground) {
+                setTimeout(() => {
+                    tableA.classList.remove('refreshing');
+                    tableB.classList.remove('refreshing');
+                    tableC.classList.remove('refreshing');
+                }, 1000);
+            }
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(l => l.trim());
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            return lines.slice(1).map(line => {
+                const values = line.split(/,(?=(?:(?:[^["]*"){2})*[^["]*$)/);
+                const obj = {};
+                headers.forEach((h, i) => {
+                    let v = (values[i] || "").trim().replace(/"/g, '');
+                    obj[h] = h === 'Amount_Rs' ? parseFloat(v) || 0 : v;
+                });
+                return obj;
+            });
+        }
+
+        function initFilters() {
+            const p1Sel = document.getElementById('a-p1');
+            const periods = [...new Set(rawData.map(d => d.Period))].filter(p => p && p !== "Period").sort();
+            
+            if (!p1Sel.innerHTML && periods.length > 0) {
+                p1Sel.innerHTML = periods.map(p => `<option value="${p}">${p}</option>`).join('');
+                handleAPeriodChange();
+            }
+
+            const bReg = document.getElementById('b-reg');
+            if (!bReg.innerHTML) {
+                const regions = [...new Set(rawData.filter(d => d.Datatype && d.Datatype.toLowerCase().includes("target")).map(d => d.Region))].filter(r => r).sort();
+                bReg.innerHTML = '<option value="">Select Region</option>' + regions.map(r => `<option value="${r}">${r}</option>`).join('');
+            }
+        }
+
+        function handleAPeriodChange() {
+            const p1 = document.getElementById('a-p1').value;
+            const p2Sel = document.getElementById('a-p2');
+            const periods = [...new Set(rawData.map(d => d.Period))].filter(p => p).sort();
+            const currentP2 = p2Sel.value;
+            
+            p2Sel.innerHTML = '<option value="">-- No Comparison --</option>' + 
+                periods.filter(p => p !== p1).map(p => `<option value="${p}" ${p === currentP2 ? 'selected' : ''}>${p}</option>`).join('');
+            renderTableA();
+        }
+
+        function handleBRegChange() {
+            const reg = document.getElementById('b-reg').value;
+            const bPer = document.getElementById('b-per');
+            if(!reg) { bPer.disabled = true; return; }
+            
+            const periods = [...new Set(rawData.filter(d => d.Region === reg).map(d => d.Period))].filter(p => p).sort();
+            bPer.disabled = false;
+            bPer.innerHTML = '<option value="">Select Period</option>' + periods.map(p => `<option value="${p}">${p}</option>`).join('');
+            handleBPerChange();
+        }
+
+        function handleBPerChange() {
+            const per = document.getElementById('b-per').value;
+            const bProd = document.getElementById('b-prod');
+            if(!per) { bProd.disabled = true; return; }
+            
+            bProd.disabled = false;
+            bProd.innerHTML = '<option value="">Select Product Group</option>' + 
+                PRODUCT_COLS.map(p => `<option value="${p}">${p}</option>`).join('');
+            renderTableB();
+        }
+
+        function initFiltersC() {
+            const cReg = document.getElementById('c-reg');
+            if (!cReg.innerHTML) {
+                const regions = [...new Set(rawData.filter(d => d.Datatype && d.Datatype.toLowerCase().includes("actual")).map(d => d.Region))].filter(r => r).sort();
+                cReg.innerHTML = '<option value="">Select Region</option>' + regions.map(r => `<option value="${r}">${r}</option>`).join('');
+            }
+        }
+
+        function handleCRegChange() {
+            const reg = document.getElementById('c-reg').value;
+            const cDiv = document.getElementById('c-div');
+            const cPer = document.getElementById('c-per');
+            
+            if(!reg) {
+                cDiv.disabled = true;
+                cPer.disabled = true;
+                cDiv.innerHTML = "";
+                cPer.innerHTML = "";
+                renderTableC();
+                return;
+            }
+
+            const divisions = [...new Set(rawData.filter(d => d.Region === reg && d.Datatype && d.Datatype.toLowerCase().includes("actual")).map(d => d.Division))].filter(d => d).sort();
+            cDiv.disabled = false;
+            cDiv.innerHTML = '<option value="">Select Division</option>' + divisions.map(d => `<option value="${d}">${d}</option>`).join('');
+            
+            cPer.disabled = true;
+            cPer.innerHTML = "";
+            renderTableC();
+        }
+
+        function handleCDivChange() {
+            const div = document.getElementById('c-div').value;
+            const cPer = document.getElementById('c-per');
+
+            if(!div) {
+                cPer.disabled = true;
+                cPer.innerHTML = "";
+                renderTableC();
+                return;
+            }
+
+            const periods = [...new Set(rawData.filter(d => d.Datatype && d.Datatype.toLowerCase().includes("actual")).map(d => d.Period))].filter(p => p).sort();
+            cPer.disabled = false;
+            cPer.innerHTML = '<option value="">Select Period</option>' + periods.map(p => `<option value="${p}">${p}</option>`).join('');
+            renderTableC();
+        }
+
+        function renderTableA() {
+            const p1 = document.getElementById('a-p1').value;
+            const p2 = document.getElementById('a-p2').value;
+            const container = document.getElementById('table-a');
+            
+            const dataSet = rawData.filter(d => d.Period === p1 || d.Period === p2);
+            const map = { regions: {}, divisions: {} };
+            const grandTotal = { p1: { total: 0 }, p2: { total: 0 } };
+            PRODUCT_COLS.forEach(c => { grandTotal.p1[c] = 0; grandTotal.p2[c] = 0; });
+
+            const initEntry = () => {
+                const entry = { p1: { total: 0 }, p2: { total: 0 } };
+                PRODUCT_COLS.forEach(c => { entry.p1[c] = 0; entry.p2[c] = 0; });
+                return entry;
+            };
+
+            dataSet.forEach(d => {
+                const reg = d.Region;
+                const div = d.Division;
+                const prod = d.Product_Group;
+                const amt = d.Amount_Rs;
+                if (!reg) return;
+                if (!map.regions[reg]) map.regions[reg] = initEntry();
+                if (div && !map.divisions[div]) map.divisions[div] = initEntry();
+                const pKey = (d.Period === p1) ? 'p1' : 'p2';
+                if (PRODUCT_COLS.includes(prod)) {
+                    map.regions[reg][pKey][prod] += amt;
+                    if (div) map.divisions[div][pKey][prod] += amt;
+                    grandTotal[pKey][prod] += amt;
+                }
+                const isActual = d.Datatype && d.Datatype.toLowerCase().includes("actual");
+                if (isActual || !d.Datatype) {
+                    map.regions[reg][pKey].total += amt;
+                    if (div) map.divisions[div][pKey].total += amt;
+                    grandTotal[pKey].total += amt;
+                }
+            });
+
+            const regions = Object.keys(map.regions).sort();
+            let html = `<thead class="sticky-header">
+                <tr>
+                    <th rowspan="2" class="sticky-col">Hierarchy</th>`;
+            PRODUCT_COLS.forEach(c => html += `<th colspan="${p2 ? 2 : 1}">${c}</th>`);
+            html += `<th colspan="${p2 ? 2 : 1}">Total</th>
+                </tr>
+                <tr>`;
+            for(let i=0; i <= PRODUCT_COLS.length; i++) {
+                html += `<th>${p1}</th>`;
+                if(p2) html += `<th class="bg-blue-500/10">${p2}</th>`;
+            }
+            html += `</tr></thead><tbody>`;
+
+            regions.forEach(r => {
+                const rVal = map.regions[r];
+                const isExp = expanded.has(r);
+                html += `<tr class="region-row" onclick="toggleExp('${r}')">
+                    <td class="sticky-col"><i class="fas fa-chevron-${isExp?'down':'right'} mr-2 text-yellow-600 dark:text-yellow-500"></i> ${r}</td>`;
+                PRODUCT_COLS.forEach(c => {
+                    html += `<td class="text-right">${rVal.p1[c].toLocaleString()}</td>`;
+                    if(p2) html += `<td class="text-right bg-blue-500/5">${rVal.p2[c].toLocaleString()}</td>`;
+                });
+                html += `<td class="text-right font-bold text-orange-700 dark:text-yellow-500">${rVal.p1.total.toLocaleString()}</td>`;
+                if(p2) html += `<td class="text-right bg-blue-500/10 font-bold text-orange-700 dark:text-yellow-500">${rVal.p2.total.toLocaleString()}</td>`;
+                html += `</tr>`;
+                if(isExp) {
+                    const divsInReg = [...new Set(dataSet.filter(d => d.Region === r).map(d => d.Division))].filter(d => d).sort();
+                    divsInReg.forEach(d => {
+                        const dVal = map.divisions[d];
+                        if(!dVal) return;
+                        html += `<tr class="division-row opacity-80">
+                            <td class="sticky-col pl-8 italic">${d}</td>`;
+                        PRODUCT_COLS.forEach(c => {
+                            html += `<td class="text-right">${dVal.p1[c].toLocaleString()}</td>`;
+                            if(p2) html += `<td class="text-right bg-blue-500/5">${dVal.p2[c].toLocaleString()}</td>`;
+                        });
+                        html += `<td class="text-right">${dVal.p1.total.toLocaleString()}</td>`;
+                        if(p2) html += `<td class="text-right bg-blue-500/10">${dVal.p2.total.toLocaleString()}</td>`;
+                        html += `</tr>`;
+                    });
+                }
+            });
+
+            html += `<tr class="total-row sticky bottom-0 z-30">
+                <td class="sticky-col">GRAND TOTAL</td>`;
+            PRODUCT_COLS.forEach(c => {
+                html += `<td class="text-right">${grandTotal.p1[c].toLocaleString()}</td>`;
+                if(p2) html += `<td class="text-right">${grandTotal.p2[c].toLocaleString()}</td>`;
+            });
+            html += `<td class="text-right">${grandTotal.p1.total.toLocaleString()}</td>`;
+            if(p2) html += `<td class="text-right">${grandTotal.p2.total.toLocaleString()}</td>`;
+            html += `</tr></tbody>`;
+            container.innerHTML = html;
+        }
+
+        function renderTableB() {
+            const reg = document.getElementById('b-reg').value;
+            const per = document.getElementById('b-per').value;
+            const prod = document.getElementById('b-prod').value;
+            const table = document.getElementById('table-b');
+            
+            if(!reg || !per || !prod) {
+                table.innerHTML = `<tr><td class="p-10 text-center opacity-40">Complete selections to view analysis</td></tr>`;
+                renderChartB([], []);
+                return;
+            }
+
+            const targets = rawData.filter(d => d.Datatype && d.Datatype.toLowerCase().includes("target") && d.Region === reg && d.Product_Group === prod);
+            const actuals = rawData.filter(d => d.Datatype && d.Datatype.toLowerCase().includes("actual") && d.Region === reg && d.Period === per && d.Product_Group === prod);
+            const divs = [...new Set([...targets, ...actuals].map(d => d.Division))].filter(d => d).sort();
+            
+            let totalTarget = 0, totalActual = 0;
+            let chartDivs = [];
+            let chartPcts = [];
+
+            let html = `<thead class="sticky-header"><tr><th class="sticky-col">Division</th><th>Target</th><th>Achievement</th><th>%</th></tr></thead><tbody>`;
+            divs.forEach(d => {
+                const targetVal = targets.filter(t => t.Division === d).reduce((s, c) => s + c.Amount_Rs, 0);
+                const actualVal = actuals.filter(a => a.Division === d).reduce((s, c) => s + c.Amount_Rs, 0);
+                totalTarget += targetVal; totalActual += actualVal;
+                const pctNum = targetVal > 0 ? (actualVal / targetVal * 100) : 0;
+                const pct = pctNum.toFixed(1);
+                
+                chartDivs.push(d);
+                chartPcts.push(parseFloat(pct));
+
+                const color = pctNum >= 100 ? 'text-green-600 dark:text-green-400' : (pctNum >= 80 ? 'text-orange-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400');
+                html += `<tr><td class="sticky-col">${d}</td><td class="text-right font-mono">${targetVal.toLocaleString()}</td><td class="text-right font-mono">${actualVal.toLocaleString()}</td><td class="text-right font-black ${color}">${pct}%</td></tr>`;
+            });
+            const totalPctNum = totalTarget > 0 ? (totalActual / totalTarget * 100) : 0;
+            const totalPct = totalPctNum.toFixed(1);
+            html += `</tbody><tfoot><tr class="total-row"><td class="sticky-col">GRAND TOTAL</td><td class="text-right font-mono">${totalTarget.toLocaleString()}</td><td class="text-right font-mono">${totalActual.toLocaleString()}</td><td class="text-right font-black text-white">${totalPct}%</td></tr></tfoot>`;
+            table.innerHTML = html;
+
+            renderChartB(chartDivs, chartPcts);
+        }
+
+        function renderChartB(divisions, percentages) {
+            const emptyMsg = document.getElementById('chart-b-empty');
+            const canvas = document.getElementById('chartB');
+
+            if (!divisions || divisions.length === 0) {
+                if (window.chartBInstance) window.chartBInstance.destroy();
+                emptyMsg.classList.remove('hidden');
+                canvas.classList.add('opacity-0');
+                return;
+            }
+
+            emptyMsg.classList.add('hidden');
+            canvas.classList.remove('opacity-0');
+
+            if (window.chartBInstance) {
+                window.chartBInstance.destroy();
+            }
+
+            const ctx = canvas.getContext('2d');
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(67, 20, 7, 0.1)';
+            const labelColor = isDark ? '#ffffff' : '#431407';
+
+            window.chartBInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: divisions,
+                    datasets: [{
+                        label: 'Achievement %',
+                        data: percentages,
+                        backgroundColor: percentages.map(p => 
+                            p >= 100 ? 'rgba(22, 163, 74, 0.7)' : 
+                            (p >= 80 ? 'rgba(234, 88, 12, 0.7)' : 'rgba(220, 38, 38, 0.7)')
+                        ),
+                        borderColor: percentages.map(p => 
+                            p >= 100 ? '#16a34a' : 
+                            (p >= 80 ? '#ea580c' : '#dc2626')
+                        ),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
+                            titleColor: labelColor,
+                            bodyColor: labelColor,
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 14 },
+                            borderColor: gridColor,
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (context) => `Achievement: ${context.raw}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            ticks: { 
+                                color: labelColor,
+                                font: { size: 12 },
+                                callback: (value) => value + '%'
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { 
+                                color: labelColor,
+                                font: { size: 12 },
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        function renderTableC() {
+            const reg = document.getElementById('c-reg').value;
+            const div = document.getElementById('c-div').value;
+            const per = document.getElementById('c-per').value;
+            const table = document.getElementById('table-c');
+
+            if(!reg || !div || !per) {
+                table.innerHTML = `<tr><td class="p-10 text-center opacity-40">Complete selections to view details</td></tr>`;
+                return;
+            }
+
+            const filtered = rawData.filter(d => 
+                (d.Datatype || "").toLowerCase().includes("actual") &&
+                d.Region === reg &&
+                d.Division === div &&
+                d.Period === per
+            );
+
+            const grouped = {};
+            filtered.forEach(d => {
+                const desc = d.HOA_Descriptoin || d.HOA_Description || d.Product_Description || d.Description || "UNKNOWN";
+                grouped[desc] = (grouped[desc] || 0) + d.Amount_Rs;
+            });
+
+            const descriptions = Object.keys(grouped).sort();
+            let grandTotalC = 0;
+            let html = `<thead class="sticky-header"><tr><th class="sticky-col">Division</th><th>Product Description</th><th class="text-right">Amount (Rs)</th></tr></thead><tbody>`;
+            
+            descriptions.forEach(desc => {
+                const amt = grouped[desc];
+                grandTotalC += amt;
+                html += `<tr>
+                    <td class="sticky-col font-bold">${div}</td>
+                    <td>${desc}</td>
+                    <td class="text-right font-mono">${amt.toLocaleString()}</td>
+                </tr>`;
+            });
+
+            html += `</tbody><tfoot><tr class="total-row">
+                <td class="sticky-col">Total</td>
+                <td class="text-center">-</td>
+                <td class="text-right font-mono">${grandTotalC.toLocaleString()}</td>
+            </tr></tfoot>`;
+
+            table.innerHTML = html;
+        }
+
+        function exportTableC() {
+            const reg = document.getElementById('c-reg').value;
+            const div = document.getElementById('c-div').value;
+            const per = document.getElementById('c-per').value;
+            if(!reg || !div || !per) return;
+            exportTable('table-c', `PartC_${div}_${per}`);
+        }
+
+        function toggleExp(r) {
+            if(expanded.has(r)) expanded.delete(r);
+            else expanded.add(r);
+            renderTableA();
+        }
+
+        function toggleTheme() {
+            isDark = !isDark;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-btn').innerHTML = isDark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+            if (window.chartBInstance) {
+                renderTableB();
+            }
+        }
+
+        function toggleView() {
+            isMobile = !isMobile;
+            document.body.classList.toggle('mobile-mode', isMobile);
+            document.getElementById('v-text').innerText = isMobile ? 'Mobile' : 'Desktop';
+            if (window.chartBInstance) {
+                setTimeout(() => renderTableB(), 100);
+            }
+        }
+
+        function exportTable(id, name) {
+            const table = document.getElementById(id);
+            if (!table) return;
+            let csv = [];
+            const rows = table.querySelectorAll("tr");
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length; j++) row.push(`"${cols[j].innerText.trim().replace(/\n/g, ' ')}"`);
+                csv.push(row.join(","));
+            }
+            downloadBlob(csv.join("\n"), `${name}_${new Date().getTime()}.csv`);
+        }
+
+        function exportRawData() {
+            if (rawData.length === 0) return;
+            const headers = Object.keys(rawData[0]).join(",");
+            const content = rawData.map(r => Object.values(r).map(v => `"${v}"`).join(",")).join("\n");
+            downloadBlob(headers + "\n" + content, "Raw_Revenue_Data.csv");
+        }
+
+        function downloadBlob(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
